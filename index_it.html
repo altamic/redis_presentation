@@ -1,0 +1,671 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="it-it" lang="it-it">
+  <head>
+    <title>Redis: un servizio ad alte prestazioni per lo storage di strutture dati</title>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" href="stylesheets/main.css" type="text/css" media="screen" charset="utf-8" />
+    <link rel="stylesheet" href="stylesheets/ruby_syntax.css" type="text/css" media="screen" charset="utf-8" />
+    <script type="text/javascript" src="javascripts/jquery.slideshow/vendor/jquery.js"></script>
+    <script type="text/javascript" src="javascripts/jquery.slideshow/lib/jquery.slideshow.js"></script>
+    <script type="text/javascript">
+      $(function() {
+          $('.slideshow').slideshow({format: 'presentation'});
+      });
+    </script>
+  </head>
+  <body>
+
+    <div class="slideshow">
+
+      <div class="first slide">
+
+        <h1>Un servizio ad alte prestazioni per lo storage di strutture dati</h1>
+
+        <div class="center">
+          <img src="images/redis_logo.png"/>
+        </div>
+        
+        <br/>
+        <br/>
+        
+        <h2>Michelangelo Altamore</h2>
+        <h4>Working Capital Barcamp Tour 2009</h4>
+        <h5>Catania, 29 Aprile 2009</h5>
+
+      </div>
+      
+      <div class="slide">
+
+        <h1>Sommario</h1>
+
+        <ul>
+          <li>Contesto problema</li>
+          <li>Approcci esistenti</li>
+          <li>Esigenze emergenti</li>          
+          <li>Panoramica di Redis</li>
+          <li>Esempi elementari</li>
+          <li>Considerazioni</li>
+          <li>Domande</li>
+        </ul>
+
+      </div>
+
+      <div class="slide">
+
+        <h1>Informazioni su Michelangelo Altamore</h1>
+
+        <ul class="smaller">
+          <li style="list-style:none"><img src="images/degree.png" /> Laurea in Informatica nel 2006 a Catania</li>
+          <li style="list-style:none"><img src="images/worker.png"/> ~ 3 anni di esperienza nello sviluppo di <em>Software Enterprise</em> </li>
+          <li style="list-style:none"><img src="images/catania_dot_rb_logo.png"/> Cofondatore del <em>Catania Ruby User Group</em>, 
+          <a href="http://cataniarb.org">cataniarb.org</a></li>
+          <li style="list-style:none"><img src="images/github_octocat.png"/> Smanetta progetti <em>open source</em> su 
+            <a href="http://github.com">github.com</a></li>
+        </ul>
+        
+      </div>
+
+      <div class="slide">
+
+        <h1>Il contesto del problema</h1>
+
+        <p>Consideriamo le prestazioni dei <em>database relazionali</em> <br/>
+        di applicazioni web su <em>grande scala</em>. Non appena <br/>
+        raggiungono una massa critica ed hanno successo:</p>
+        
+        <ul>
+          <li>crescono <em>velocemente</em> in termini di spazio</li>
+          <li>subiscono un rate sostenuto di richieste <br/>
+          con <em>picchi drammatici</em></li>
+        </ul>
+        
+        <p>Soddisfare velocemente una <em>mole elevata</em> di<br/>
+        richieste per unita' di tempo diventa <em>cruciale</em></p>
+
+      </div>
+
+      <div class="slide">
+        
+        <h1>I database relazionali sono il collo di bottiglia</h1>
+
+        <p>Nel tempo si sono consolidate varie tecniche <br/> 
+          per aumentare il <em>Request Rate</em> dei RDBMS:</p>
+        
+        <ul>
+          <li style="padding-bottom:0.3em">recuperare le richieste gia' evase:<br/>
+            <em>caching</em></li> 
+          <li>distribuire i dati:<br/>
+            <em>replication</em>, <em>clustering</em>, <em>sharding</em></li> 
+          <li>distribuire il carico di richieste:<br/>
+            <em>proxying</em>, <em>relaying</em></li> 
+        </ul>
+        
+      </div>
+
+      <div class="slide">
+
+        <h1>Middleware su middleware</h1>
+        
+        <p>Per ottenere cio' sono stati implementati diversi<br/> 
+        <em>middleware</em> che ottengono risultati <em>non sempre<br/> 
+        soddisfacenti</em> ed hanno il loro <em>prezzo da pagare</em></p>
+        
+        <ul>
+          <li>aggiungono complessita' architetturale</li>
+          <li>incrementano le “<em>moving parts</em>” ed i<br/> 
+            relativi costi di gestione del sistema</li>
+        </ul>
+
+         <p>Proviamo ad andare a monte per discutere<br/> 
+           i <em>costi/benefici</em> dei RDBMS</p>
+
+      </div>
+      
+      <div class="slide">
+
+        <h1>Perche' usiamo un RDBMS?</h1>
+        
+        <p>Versatilita' espressiva: fornisce SQL, un linguaggio <br/>
+          comprensibile per esprimere e manipolare <br/>
+          il <em>modello di dati</em> di un applicativo</p>
+      
+        <p>Ma, dietro le quinte, la versatilita' ha dei costi:</p>
+          <ul>
+            <li><em>Query lifecycle</em>: parsing, schedulazione,<br/> 
+               processing</li>
+            <li>Gli <em>accessi al disco</em> degradano le prestazioni<br/> 
+              degli <em>algoritmi</em> utilizzati dal RDBMS</li>        
+          </ul>
+
+      </div>
+
+      <div class="slide">
+
+        <h1>Quando un RDBMS non aiuta</h1>
+        
+        <p>Purtroppo il modello relazionale risulta inadeguato<br/>
+           per modellare domini di dati <em>gerarchici</em>. <br/>
+           Es.: alberi, grafi.</p> 
+          
+        <ul class="smaller">
+          <li>Quando lo si fa, si ottengono implementazioni <br/>
+          <em>intrinsecamente</em>  macchinose e sconvenienti con <br/>
+          ripercussioni <em>negative</em> sul <em>Request Rate</em>.</li>
+        </ul>
+        
+        <p>Esempio: dati gerarchici implementati in SQL<br/>
+          <a class="smaller" href="http://dev.mysql.com/tech-resources/articles/hierarchical-data.html">
+            http://dev.mysql.com/tech-resources/articles/<br/>hierarchical-data.html</a>
+        </p>
+      </div>
+      
+      <div class="slide">
+
+        <h1>Effetto impedenza dei RDBMS</h1>
+        
+        <p>Inoltre, non essendoci un <em>matching</em> tra la <br/>
+          rappresentazione dei dati fornita dal database <br/>
+          e quella impiegata dall'applicativo</p>
+          
+        <ul>
+          <li>dobbiamo <em>cambiare</em> la rappresentazione dei dati<br/> 
+            introducendo  un <em>lavoro computazionale</em>: 
+            <ul>
+              <li>necessario</li> 
+              <li>ma non richiesto</li>
+            </ul>
+          </li>
+        </ul>
+        
+      <p style="margin-top:-1em;">Es. <tt>ActiveRecord</tt> in RoR: 
+        <tt class="smaller">acts_as_nested_set</tt>,<br/>
+        <tt class="smaller">act_as_a_list</tt>, <tt class="smaller">acts_as_a_ordered_list</tt></p>
+      </div>
+      
+      <div class="slide">
+
+        <h1>Alla ricerca di uniformita'</h1>
+        
+        <p>Del resto sarebbe comodo dotarsi proprio a<br/> 
+          <em>livello applicativo</em> di un'interfaccia <em>uniforme</em> <br/>
+          e <em>disaccoppiata</em> ad <a href="http://en.wikipedia.org/wiki/Abstract_data_type">Abstract Data Types</a></p>
+
+          <ul>
+            <li>sia per il <em>modello di dati</em> </li>
+            <li>che per le <em>strutture dati ausiliarie</em> che <br/>
+              coinvolgono il modello dei dati stesso</li>      
+          </ul>
+            
+          <p>Es. <a href="http://en.wikipedia.org/wiki/Queue_(data_structure)">Code</a> 
+            di messaggi per elaborazioni asincrone,<br/>
+            <a href="http://en.wikipedia.org/wiki/Deque">deque</a>,
+            <a href="http://en.wikipedia.org/wiki/Priority_queue">code con priorita'</a>, etc…
+          </p>
+      </div>
+      
+      <div class="slide">
+
+        <h1>Key-Value store: un'alternativa al modello relazionale</h1>
+        
+        <p>Consiste praticamente in una tabella hash. E' piu' <br/>
+          <em>semplice</em> concettualmente rispetto ad un RDBMS</p>
+          <ul class="smaller">
+            <li >grazie al <em>Consistent Hashing</em> l'aggiunta o la <br/>
+              rimozione di uno o piu' server non comporta la <br/>
+              rimappatura di tutte le chiavi sui restanti altri.</li>
+            <li>Le tecniche di <em>scaling</em> menzionate inizialmente<br/> 
+              rimangono applicabili</li>
+          </ul>
+        <p>Alcuni dei piu' noti sono <em><a href="http://couchdb.apache.org/">CouchDB</a></em>,
+        <em><a href="http://tokyocabinet.sourceforge.net">Tokyo Cabinet</a></em>,<br/> 
+        <em><a href="http://project-voldemort.com/">Voldemort</a></em> e da <em>poco meno di due mesi</em>
+        anche 
+        <em><a href="http://antirez.com/post/Redis-my-new-open-source-project.html">Redis</a></em></p>
+        
+      </div>
+      
+      <div class="slide">
+
+        <h1>Il papa' di Redis</h1>
+        
+        <div class="right">
+          <img src="images/antirez.png"/>
+        </div>
+        
+        <p>Concepito da <em>antirez</em>, al secolo<br/> 
+           <em>Salvatore Sanfilippo</em>, uno dei<br/>
+           migliori Hacker della comunita'<br/> 
+           <span style="color:green;">ita</span><span style="color:white">lia</span><span style="color:red">na</span> di programmatori</p>
+
+        <p>
+          Grazie alla sua <em>notevole esperienza</em>,<br/>
+          fissato l'obiettivo, Salvatore e' <br/>
+          capace di valutare e prendere <em>scelte <br/>
+          progettuali</em> con ottimi risultati<br/>
+          </p>
+      </div>
+      
+      <div class="slide">
+        
+        <h1>Obiettivi</h1>
+        
+        <p>Disaccoppiare una Struttura Dati dalla<br/> 
+          memoria dell'elaboratore che la usa</p>
+        
+        <p>Fornire operazioni che consentano <br/> 
+          l'implementazione delle principali ADT.</p>
+
+         <p>Consentire gli approcci relazionali <br/>
+           a condizione che facciano uso <br/> 
+           esclusivamente di <em>chiavi surrogate</em></p>
+         
+      </div>
+      
+      
+      <div class="slide">
+
+        <h1>Decisioni su <em>cosa</em> fare..</h1>
+        
+        <ul>
+          <li>Oltre all'usuale <em>tipo stringa</em>, introdurre <br/>
+            tipi di dato basilari: <em>insiemi</em> e <em>liste ordinate</em></li>
+          </li>
+          <li>Esporre le operazioni a <em>livello di protocollo</em> </li>
+          <li>Fornire un'interfaccia <em>uniforme</em> che faciliti<br/>
+            l'implementazione di ADT a livello applicativo</li>
+          <li>Esporre meccanismi di gestione di <em>persistenza</em> e <br/>
+            <em>sincronizzazione</em> lasciando ai client libera scelta <br/>
+            sulle <em>policy</em></li>
+        </ul>
+      </div>
+
+      <div class="slide">
+
+        <h1>Decisioni su <em>come</em> fare..</h1>
+        
+        <ul>
+          <li>Operazioni <em>atomiche</em> quando servono per:</li>
+             <ul>
+               <li>evitare il <em>locking</em></li>
+               <li>garantire la <em>consistenza</em></li>
+             </ul>
+          <li>Allocare sulla RAM l'<em>intero dataset</em> di un server</li>
+          <li>Integrare il modello <em>Client/Server</em> per sfruttarne<br/> 
+            i benefici</li>
+        </ul>
+      </div>
+
+      <div class="slide">
+
+        <h1>..che fanno la differenza</h1>
+        
+        <div class="center" style="margin-top:-1em;">
+          <img src="images/lamborghini_diablo.png"/>
+        </div>
+      </div>
+      
+      <div class="slide">
+        
+        <h1>Con Redis un server ottiene le prestazioni di un cluster</h1>
+
+        <p>Su un <em>singolo</em> Xeon L5420 64 bit, CPU @ 2.5 Ghz, Linux 2.6, <br/>
+          50 client con 100.000 req/s sull'interfaccia di loopback</p>
+          
+        <ul class="left">
+          <li>PING:  <em>111.731,84 req/s</em></li>
+          <li>SET:   <em>108.114,59 req/s</em></li>
+          <li>GET:    <em>98.717,67 req/s</em></li>
+          <li>INCR:   <em>95.241,91 req/s</em></li>
+          <li>LPUSH: <em>104.712,05 req/s</em></li>
+          <li>LPOP:   <em>93.722,59 req/s</em></li>
+        </ul>
+        
+        <div class="right" style="margin-top:2em;">
+          <img src="images/redis_powered_aborghini_diablo_engine.png"/>
+        </div>
+      </div>
+      
+      <div class="slide">
+
+        <h1>Come si presenta Redis?</h1>
+        
+        <ul>
+          <li>Uno store key-value scritto in ANSI-C</li>
+          <li>Servizio POSIX compliant che gira sulla porta 6379</li>          
+          <li>Opera in memoria e scrive su disco le <em>variazioni</em> <br/>
+            in modo asincrono secondo una <em>policy configurabile</em></li>
+          <li>Distribuito con licenza BSD</li>
+        </ul>
+        
+      </div>
+      
+      <div class="slide">
+
+        <h1>Una chiave in Redis</h1>
+        
+        <ul>
+          <li>Fornisce un livello di <em>indirezione</em> all'elemento <br/>
+            di interesse</li>
+          <li>E' una stringa, ma con due restrizioni:<br/>
+              <em>non puo'</em> contenere spazio (<tt>" "</tt>) <br/>
+              <em>non puo'</em> contenere ritorno a capo (<tt>"\n"</tt>)
+          </li>
+          <li>Selezionabile tramite <em>pattern matching</em></li>
+          <li>Puo' avere una <em>scadenza</em></li>
+          <li>Consente il <em>name spacing</em> lasciando al client <br/>
+            il compito di stabilire come</li>
+        </ul>
+
+      </div>
+      
+      <div class="slide">
+
+        <h1>Matching di chiavi in Redis</h1>
+        
+        <ul class="smaller">
+            <li><tt>user:michelangelo</tt>, <tt>user:michele</tt> e <tt>user:rachele</tt><br/>
+            sono tre chiavi valide (non hanno spazi o ritorno a capo)</li>
+            <li><tt>user:michel*</tt><br/>
+              seleziona <tt>user:michelangelo</tt> e <tt>user:michele</tt></li>
+            <li><tt>user:??chele</tt><br/>
+              seleziona <tt>user:michele</tt> e <tt>user:rachele</tt></li>
+         </ul>
+
+        <p>Si usa il <em>glob style</em> per i pattern</p>
+        
+         <ul class="smaller">
+           <li>il simbolo * accetta
+             <em>un numero qualunque</em> di caratteri dell'alfabeto</li> 
+           <li>il simbolo ? accetta 
+             <em>uno solo</em> dei possibili caratteri dell'alfabeto </li>
+         </ul>
+      </div>
+      
+      <div class="slide">
+
+        <h1>Un valore in Redis</h1>
+        
+        <p>
+          Un valore e' l'elemento associato ad una certa chiave.<br/> 
+          Quando esiste, un elemento puo' essere:<br/> 
+          una stringa, un insieme o una lista.
+        </p>
+        
+        <ul>
+          <li><em>Stringa</em>: una qualsiasi sequenza di bytes testuale o binaria</li>
+          <li><em>Insieme</em>: una collezione senza duplicati e non ordinata di <em>elementi</em></li>
+          <li><em>Lista</em>: sequenza ordinata di <em>elementi</em></li>
+        </ul>
+        
+      </div>
+      
+      <div class="slide">
+        
+        <h1>Suddivisione dei Comandi di Redis</h1>
+        
+        <ul>
+          <li>Gestione connessioni</li>
+          <li>Spazio delle chiavi</li>
+          <li>Valori: stringhe, insiemi, liste</li>
+          <li>Ordinamento</li>
+          <li>Gestione di Database Multipli</li>
+          <li>Controllo Persistenza</li>
+          <li>Controllo Server Remoto</li>
+        </ul>
+      </div>
+      
+      <div class="slide">
+        
+        <h1>Primi passi con Redis: Chiave-Valore</h1>
+          
+         <div class="CodeRay">
+             <div class="code"><pre>
+               
+               require <span class="s"><span class="dl">'</span><span class="k">rubygems</span><span class="dl">'</span></span>
+               require <span class="s"><span class="dl">'</span><span class="k">redis</span><span class="dl">'</span></span>
+               
+               r = <span class="co">Redis</span>.new
+               
+               r[<span class="s"><span class="dl">'</span><span class="k">user:michelangelo:id</span><span class="dl">'</span></span>] = <span class="s"><span class="dl">'</span><span class="k">1000</span><span class="dl">'</span></span>  <span class="c"># SET user:michelangelo:id 1000</span>
+               r[<span class="s"><span class="dl">'</span><span class="k">user:michelangelo:id</span><span class="dl">'</span></span>]           <span class="c"># GET user:michelangelo:id  </span>
+               
+               r[<span class="s"><span class="dl">'</span><span class="k">user:michel:id</span><span class="dl">'</span></span>] = <span class="s"><span class="dl">'</span><span class="k">1001</span><span class="dl">'</span></span>       <span class="c"># SET user:michel:id 1001</span>
+               r[<span class="s"><span class="dl">'</span><span class="k">user:michel:id</span><span class="dl">'</span></span>]                <span class="c"># GET user:michel:id </span>
+               
+               <span class="c"># Osserva che il : fa da separatore per namespacing delle chiavi</span>
+               <span class="c"># poteva anche essere un / , - , etc..</span>
+             </div>
+          </div>
+          
+          <p>
+            <br/>
+            <tt>git clone git://github.com/antirez/redis.git</tt><br/>
+            <tt>cd redis; make; ./redis-server &</tt><br/>
+            <tt>sudo gem install ezmobius-redis-rb; irb</tt>
+          </p>
+      </div>
+      
+      <div class="slide">
+        
+        <h1>Primi passi con Redis: Contatori</h1>
+        
+          <div class="CodeRay">
+             <div class="code"><pre>
+              
+               r.delete <span class="s"><span class="dl">'</span><span class="k">user_id</span><span class="dl">'</span></span>          <span class="c"># DEL user_id</span>
+               r.set(<span class="s"><span class="dl">'</span><span class="k">user_id</span><span class="dl">'</span></span>, <span class="i">0</span>)         <span class="c"># SET user_id 0</span>
+               r[<span class="s"><span class="dl">'</span><span class="k">user_id</span><span class="dl">'</span></span>]                <span class="c">#  =&gt; 0</span>
+               
+               r.incr(<span class="s"><span class="dl">'</span><span class="k">user_id</span><span class="dl">'</span></span>, <span class="i">1000</span>)     <span class="c"># INCRBY user_id integer</span>
+               r[<span class="s"><span class="dl">'</span><span class="k">user_id</span><span class="dl">'</span></span>]                <span class="c">#  =&gt; 1000</span>
+               
+               r.incr(<span class="s"><span class="dl">'</span><span class="k">user_id</span><span class="dl">'</span></span>)           <span class="c"># INCR user_id </span>
+               r[<span class="s"><span class="dl">'</span><span class="k">user_id</span><span class="dl">'</span></span>]                <span class="c">#  =&gt; 1001</span>
+               
+               r.incr(<span class="s"><span class="dl">'</span><span class="k">user_id</span><span class="dl">'</span></span>)           <span class="c"># incrementiamo il contatore globale </span>
+               r[<span class="s"><span class="dl">'</span><span class="k">user_id</span><span class="dl">'</span></span>]                <span class="c">#  =&gt; 1002</span>
+               
+               r[<span class="s"><span class="dl">'</span><span class="k">user:alessandro:id</span><span class="dl">'</span></span>] = r[<span class="s"><span class="dl">'</span><span class="k">user_id</span><span class="dl">'</span></span>]  <span class="c"># SET user:alessandro:id 1002</span>
+               r[<span class="s"><span class="dl">'</span><span class="k">user:alessandro:id</span><span class="dl">'</span></span>]                 <span class="c"># =&gt; 1002</span>
+               
+               r.delete <span class="s"><span class="dl">'</span><span class="k">user:alessandro:id</span><span class="dl">'</span></span> <span class="c"># DEL user:alessandro:id</span>
+               
+               r.decr(<span class="s"><span class="dl">'</span><span class="k">user_id</span><span class="dl">'</span></span>)             <span class="c"># DECR  user_id</span>
+               r[<span class="s"><span class="dl">'</span><span class="k">user_id</span><span class="dl">'</span></span>]                  <span class="c">#  =&gt; 1001</span>
+               </pre>
+            </div>
+          </div>
+      </div>
+      
+      <div class="slide">
+        
+        <h1>Primi passi con Redis: Insiemi</h1>
+        
+        <div class="CodeRay">
+          <div class="code"><pre>
+                        
+            r.set_add <span class="s"><span class="dl">'</span><span class="k">user:michelangelo:barcamp2009:tags</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">redis</span><span class="dl">'</span></span>
+            r.set_add <span class="s"><span class="dl">'</span><span class="k">user:michelangelo:barcamp2009:tags</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">storage</span><span class="dl">'</span></span>
+            r.set_add <span class="s"><span class="dl">'</span><span class="k">user:michelangelo:barcamp2009:tags</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">data structure</span><span class="dl">'</span></span>
+            r.set_add <span class="s"><span class="dl">'</span><span class="k">user:michelangelo:barcamp2009:tags</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">web 3.0</span><span class="dl">'</span></span>
+            
+            r.set_members <span class="s"><span class="dl">'</span><span class="k">user:michelangelo:barcamp2009:tags</span><span class="dl">'</span></span>
+            <span class="c"># =&gt; #&lt;Set: {&quot;data structure&quot;, &quot;redis&quot;, &quot;storage&quot;, &quot;web 3.0&quot;}&gt;</span>
+            
+            r.set_add <span class="s"><span class="dl">'</span><span class="k">user:michel:barcamp2009:tags</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">semantic web</span><span class="dl">'</span></span>
+            r.set_add <span class="s"><span class="dl">'</span><span class="k">user:michel:barcamp2009:tags</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">ontology</span><span class="dl">'</span></span>
+            r.set_add <span class="s"><span class="dl">'</span><span class="k">user:michel:barcamp2009:tags</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">rdf/owl</span><span class="dl">'</span></span>
+            r.set_add <span class="s"><span class="dl">'</span><span class="k">user:michel:barcamp2009:tags</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">web 3.0</span><span class="dl">'</span></span>
+            
+            r.set_members <span class="s"><span class="dl">'</span><span class="k">user:michel:barcamp2009:tags</span><span class="dl">'</span></span>
+            <span class="c"># =&gt; &lt;Set: {&quot;rdf/owl&quot;, &quot;semantic web&quot;, &quot;ontology&quot;, &quot;web 3.0&quot;}&gt;</span>
+            
+            p <span class="s"><span class="dl">'</span><span class="k">intersezione</span><span class="dl">'</span></span>
+            r.set_intersect <span class="s"><span class="dl">'</span><span class="k">user:michelangelo:barcamp2009:tags</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">user:michel:barcamp2009:tags</span><span class="dl">'</span></span>
+            <span class="c"># =&gt; #&lt;Set: {&quot;web 3.0&quot;}&gt;</span>
+            </pre>
+          </div>
+        </div>
+      </div>
+      
+      <div class="slide">
+        
+        <h1>Primi passi con Redis: Liste</h1>
+        
+        <div class="CodeRay">
+          <div class="code"><pre>
+            
+            r.delete <span class="s"><span class="dl">'</span><span class="k">coda</span><span class="dl">'</span></span> <span class="c"># inizializza il buffer della coda di messaggi</span>
+            
+            <span class="c"># produttore </span>
+            r.push_tail <span class="s"><span class="dl">'</span><span class="k">coda</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">vino</span><span class="dl">'</span></span>  <span class="c"># =&gt; &quot;OK&quot;</span>
+            r.push_tail <span class="s"><span class="dl">'</span><span class="k">coda</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">acqua</span><span class="dl">'</span></span> <span class="c"># =&gt; &quot;OK&quot;</span>
+            
+            <span class="c"># consumatore</span>
+            r.pop_head <span class="s"><span class="dl">'</span><span class="k">coda</span><span class="dl">'</span></span> <span class="c"># =&gt; &quot;vino&quot;</span>
+            
+            <span class="c"># arriva l'antipasto :)</span>
+            r.push_tail <span class="s"><span class="dl">'</span><span class="k">coda</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">pane</span><span class="dl">'</span></span>      <span class="c"># =&gt; &quot;OK&quot;</span>
+            r.push_tail <span class="s"><span class="dl">'</span><span class="k">coda</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">olive</span><span class="dl">'</span></span>     <span class="c"># =&gt; &quot;OK&quot;</span>
+            r.push_tail <span class="s"><span class="dl">'</span><span class="k">coda</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">caponata</span><span class="dl">'</span></span>  <span class="c"># =&gt; &quot;OK&quot;</span>
+            
+            <span class="c"># consumatore</span>
+            r.pop_head <span class="s"><span class="dl">'</span><span class="k">coda</span><span class="dl">'</span></span> <span class="c"># =&gt; &quot;acqua&quot;</span>
+            r.pop_head <span class="s"><span class="dl">'</span><span class="k">coda</span><span class="dl">'</span></span> <span class="c"># =&gt; &quot;pane&quot;</span>
+            
+            <span class="c"># il condimento arriva in ritardo..</span>
+            r.push_tail <span class="s"><span class="dl">'</span><span class="k">coda</span><span class="dl">'</span></span>, <span class="s"><span class="dl">'</span><span class="k">olio</span><span class="dl">'</span></span>  <span class="c"># =&gt; &quot;OK&quot;</span>
+            
+            r.pop_head <span class="s"><span class="dl">'</span><span class="k">coda</span><span class="dl">'</span></span> <span class="c"># =&gt; &quot;olive&quot;</span>
+            r.pop_head <span class="s"><span class="dl">'</span><span class="k">coda</span><span class="dl">'</span></span> <span class="c"># =&gt; &quot;caponata&quot;</span>
+            r.pop_head <span class="s"><span class="dl">'</span><span class="k">coda</span><span class="dl">'</span></span> <span class="c"># =&gt; &quot;olio&quot;</span>
+            r.pop_head <span class="s"><span class="dl">'</span><span class="k">coda</span><span class="dl">'</span></span> <span class="c"># => nil non e' rimasto piu' nulla :)</span>
+            </pre>
+          </div>
+        </div>
+      </div>
+      
+      <div class="slide">
+
+        <h1>Ci sono molte lingue con cui puoi parlare a Redis</h1>
+
+        <p>Sono attualmente disponibili client per i seguenti ambienti o <br/>
+          linguaggi di programmazione:</p>
+
+        <ul class="left">
+          <li>CLI</li>
+          <li>Telnet</li>
+          <li>Ruby</li>
+          <li>Python</li>
+          <li>Perl</li>
+        </ul>
+
+        <ul class="right">
+          <li>TCL</li>  
+          <li>Java</li>
+          <li>PHP</li>
+          <li>Erlang</li>
+          <li>Lua</li>
+        </ul>
+
+      </div>
+      
+
+
+      <div class="slide">
+        
+        <h1>Chi sta usando Redis</h1>
+        
+          <p><a href="http://www.merzia.com"><img src="images/merzia_logo.png"/></a> Merzia, 
+            <a href="http://lloogg.com">Llogg.com</a></p>
+          <p><a href="http://www.engineyard.com"><img src="images/logo_engineyard.png"/></a> Engine Yard, 
+            <a href="http://github.com/ezmobius/nanite/tree/master">Nanite</a></p>
+          <p><a href="http:/messagepub.com"><img src="images/messagepub_logo.png"></a> MessagePub.com, <a href="http:/messagepub.com">Multichannel Message API</a></p>
+                    
+      </div>
+      
+      <div class="slide">
+        
+        <h1>Contributori ai Redis Clients</h1>
+
+        <ul>
+          <li>Ezra Zygmuntowicz: Ruby</li>
+          <li>Ludovico Magnocavallo: Python, PHP</li>
+          <li>Alfonso Jimenez: PHP lib module in C</li>
+          <li>Valentino Volonghi @ Adroll: Erlang</li>
+          <li>Daniele Alessandri: LUA</li>
+          <li>Dobrica Pavlinusic: PERL</li>
+          <li>Marco Aurelio Valtas Cunha: JDBC-Redis</li>
+          <li>Joubin Houshyar: Java Client and Connectors for Redis</li>
+          </li>
+        </ul>
+        
+      </div>
+
+      <div class="slide">
+        
+        <h1>Riferimenti Utili</h1>
+        
+        <ul>
+           <li><a href="http://github.com/antirez/redis">Redis on GitHub</a><br/>
+             http://github.com/antirez/redis</li>
+           <li><a href="http://code.google.com/p/redis/wiki/index">Documentazione</a><br/>
+             http://code.google.com/p/redis/wiki</li>
+            <li><a href="http://code.google.com/p/redis/wiki/TwitterAlikeExample" >Retwis: Twitter clone con Redis</a><br/>
+              http://code.google.com/p/redis/wiki/TwitterAlikeExample</li>
+        </ul>
+        
+      </div>
+      
+      <div class="slide">
+        <h1>Domande</h1>
+        <div class="center" style="font-size:20em;">?</div>
+      </div>
+      
+      
+      <div class="slide">
+        <h1>Crediti</h1>
+
+        <p class="small"> Antirez's face
+          <a href="http://www.flickr.com/photos/antirez/2961397230/">antirez @ flikr.com</a>
+        </p>
+        
+        <p class="small"> Lamborghini Diablo 
+          <a href="http://www.flickr.com/photos/12726292@N05/">apulloa @ sbcglobal.net</a>
+        </p>
+
+        <p class="small"> Lamborghini Diablo Engine
+          <a href="http://www.flickr.com/photos/25349554@N03/">jclo3313 @ flikr.com</a>
+        </p>
+        
+        <p class="small"> JQuery Slideshow Plugin
+          <a href="http://github.com/teejayvanslyke">T. J. Van Slyke</a>
+        </p>
+        
+      </div>
+      
+      <div class="slide">
+        <h1>Grazie per l'attenzione!</h1>
+        
+        <p><tt>http://claimid.com/michelangelo_altamore</tt></p>
+          
+        <div class="right">
+          <img src="images/picture_machine.png"/>
+        </div>
+         
+         <p>Mi trovate su:<p>
+           <ul>
+             <li><a href="http://github.com/michelangelo-altamore">GitHub</li>
+             <li><a href="http://twitter.com/miky_altamore">Twitter</a></li>
+             <li><a href="http://linkedin.com/in/michelangeloaltamore">LinkedIn</a></li>             
+             <li><a href="http://www.facebook.com/people/Michelangelo_Altamore/1356999061">Facebook</a></li>
+             <li><a href="http://michelangelo.altamore.org">Web</a></li>
+           </ul>
+
+
+      </div>
+      
+    </div>
+
+  </body>
+</html>

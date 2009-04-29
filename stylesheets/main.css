@@ -1,0 +1,170 @@
+/*
+1 -----
+#1919B3
+#12127D
+#C8C8FF
+#9191FF
+2 -----
+#400099
+#2D006B
+#DABFFF
+#B580FF
+3 -----
+#0066B3
+#00487D
+#BFE4FF
+#80C9FF
+*/
+
+body {
+  font-family: Optima, sans-serif;
+  font-size: 20px;
+  margin: 0; padding: 0;
+  letter-spacing: -1px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  text-align: center;  
+  margin: 0;
+  padding: 0;
+}
+
+h2 {  
+}
+
+h3 {  
+  color: #1919B3
+}
+
+h4 {  
+  color: #400099;
+}
+
+h5 {  
+  color: #1919B3;
+}
+
+tt {
+  color: #BFE4FF;
+}
+
+.presentation ul {
+  margin-top:-0.2em;
+  margin-left: 2.0em;
+}
+
+.presentation ul li {
+  font-size: 2.0em;
+  line-height:1.3em;
+  padding-bottom:0.4em;
+}
+
+.presentation ul li ul li {
+  font-size: 1.0em;
+}
+
+.center {
+  text-align: center;
+}
+
+.presentation .slide {
+  width: 53.3em;
+  height: 30em;
+  color: #C8C8FF;
+/*  background-color: #12127D; */
+  background-color: #12123D;
+}
+
+.presentation .first {
+  background-color: #f0f0f0;
+  color: #12127D;
+}
+
+.presentation h1 {
+  font-size: 2em;
+  background-color: #400099;
+  color: #f0f0f0;
+  border-bottom: 0.5em solid #2D006B;
+  margin-bottom: 1.0em;
+  padding-top:10px;
+  height: 1.6em;
+  vertical-align: baseline;
+}
+
+.presentation p {
+  font-size: 2.0em;
+  margin-top: 0em;
+  margin-left:1em; 
+  margin-right:1em;
+}
+
+.presentation a {
+  color:white; 
+  text-decoration:none; 
+}
+
+.presentation a:hover {
+  text-decoration:underline; 
+}
+
+.presentation pre {
+  margin: 1em;
+  margin-left:6em;
+  margin-right:6em;
+  padding: 0.5em;
+  background-color: #323232;
+  border: 0.1em solid #E8E8E8;
+  color: white;
+  font-size: 0.9em;
+  font-family: "Monaco", "Courier New", fixed;
+}
+.presentation .left {
+  width: 40%;
+  float: left;
+  
+}
+.presentation .right {
+  width: 40%;
+  float: right;
+}
+
+.slide .notes {
+  display: none;
+}
+
+.outline {
+  width: 600px;
+}
+
+.outline .slide {
+  background-color: #fff;
+  border-bottom: 1px solid #ccc;
+  padding: 2em 0;
+}
+
+.outline h1,
+.outline h2,
+.outline h3,
+.outline h4,
+.outline h5 {
+  font-size: 1.0em;
+  text-align: left;
+}
+
+.outline .center {
+  text-align: left;
+}
+
+.outline .notes {
+  display: block;
+}
+
+.smaller {
+  font-size:0.9em;
+}
+
+.small {
+  font-size:0.6em;
+}
+
+
